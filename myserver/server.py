@@ -8,7 +8,7 @@ from .config import VAULT_PATH
 
 from mcp.server.fastmcp.server import logger
 
-class KnowledgeVault:
+class KnowledgeVaultServer:
     def __init__(self):
         self.app = FastMCP("knowledge-vault")
         

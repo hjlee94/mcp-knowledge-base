@@ -1,1 +1,1 @@
-from .server import KnowledgeVault
+from .server import KnowledgeVaultServer

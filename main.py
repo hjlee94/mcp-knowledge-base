@@ -1,7 +1,7 @@
-from myserver import KnowledgeVault
+from myserver import KnowledgeVaultServer
 
 if __name__ == '__main__':
-    app = KnowledgeVault()
+    app = KnowledgeVaultServer()
     app.run()
 
     
