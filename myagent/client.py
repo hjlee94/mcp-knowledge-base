@@ -12,17 +12,20 @@ class KnowledgeVaultClient:
 
     
     async def connect_to_server(self, server_script_path:str):
-        
         server_params = StdioServerParameters(
             command = "python",
             args=[server_script_path],
             env=None
         )
 
+        # spawaning a process for running a mcp server
         stdio_transport = await self.exit_stack.enter_async_context(stdio_client(server_params))
-        self.stdio, self.write = stdio_transport
-        self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
+        self.read, self.write = stdio_transport
 
+        # init session using read/write pipes of the process spawned
+        self.session = await self.exit_stack.enter_async_context(ClientSession(self.read, self.write))
+
+        # connect server by sending initialize request
         await self.session.initialize()
 
     async def list_tools(self) -> list[types.Tool]:
@@ -45,7 +48,7 @@ class KnowledgeVaultClient:
 async def test():
     client = KnowledgeVaultClient()
     path = './main.py'
-    
+
     try:
         await client.connect_to_server(path)
         tools = await client.list_tools()
