@@ -9,7 +9,8 @@ async def run_agent():
     agent.register_mcp(path="./run_server.py")
 
     async with agent:
-        response = agent.chat("who are you?")
+        # response = agent.chat("can you list which knowledges are in the vault?")
+        response = agent.chat("can you show me the contents of the resource named Contrastive Learning? its uri is \"file://a/bb/c.md\"")
         print(response)
 
 

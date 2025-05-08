@@ -9,7 +9,7 @@ class LlamaCPP(BaseModel):
         self.max_tokens = 256
 
     @classmethod
-    def from_path(cls, model_path:str, n_ctx:int=1024, **kwargs) -> Self:
+    def from_path(cls, model_path:str, n_ctx:int=131072, **kwargs) -> Self:
         model = Llama(
             model_path=model_path,
             n_ctx=n_ctx,
