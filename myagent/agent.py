@@ -15,7 +15,6 @@ class LlamaAgent:
         )
 
         self._llm_param = {}
-        self.set_generation_mode()
         self._llm_param.update(kwargs)
 
         if not prompt:
