@@ -1,6 +1,4 @@
-from typing import Callable, List
-
-import yaml
+from .types import BasePrompt
 
 class History:
     def __init__(self, max_history=50) -> None:
@@ -23,13 +21,15 @@ class History:
     def clear(self):
         self._history = []
 
-class Prompt:
-    def __init__(self, system_prompt:str) -> None:
-        #<|begin_of_text|>
-        self._system_prompt = f"<|start_header_id|>system<|end_header_id|>"
-        self._system_prompt+= f"{system_prompt}<|eot_id|>"
-        
+class LlamaPrompt(BasePrompt):
+    def __init__(self) -> None:
+        self.set_system_prompt("You are a helpful assistant.")
         self.history = History()
+
+    def set_system_prompt(self, system_prompt:str):
+        # self._system_prompt = f"<|begin_of_text|>" #! duplicate??
+        self._system_prompt = f"<|start_header_id|>system<|end_header_id|>"
+        self._system_prompt += f"{system_prompt}<|eot_id|>"
 
     def get_user_prompt(self, question:str) -> str:
         prompt = f"<|start_header_id|>user<|end_header_id|>"

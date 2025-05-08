@@ -1,28 +1,34 @@
-from llama_cpp import Llama
-from .prompt import Prompt
+from .prompt import BasePrompt
+from .model import BaseModel
+from .client import MCPClient
 from . import errors
 
-class LlamaAgent:
-    def __init__(self, name:str, model_path:str, prompt:Prompt=None, max_tokens:int=256, **kwargs) -> None:
+class Agent:
+    def __init__(self, name:str, model:BaseModel, prompt:BasePrompt) -> None:
         self.name = name
-        
-        self._llm = Llama(
-            model_path=model_path,
-            verbose=False,
-            n_ctx=2048
-            # n_gpu_layers=-1, # Uncomment to use GPU acceleration
-            # seed=1337, # Uncomment to set a specific seed
-        )
 
-        self._llm_param = {}
-        self._llm_param.update(kwargs)
+        self.prompt = prompt
+        self.llm = model
 
-        if not prompt:
-            self.prompt = Prompt(system_prompt="You are a helpful assistant.")
+        self.server_list = []
+        self.mcp_clients = []
 
-        self._max_tokens = max_tokens
+    def register_mcp(self, path:str):
+        '''
+        register mcp client/server (server script path)
+        it only supports stdio mcp server (for now)
+        '''
+        self.server_list.append(path)
 
-        #TODO : MCP Client
+    async def init_mcp_client(self):
+        for server_path in self.server_list:
+            client = MCPClient()
+            await client.connect_to_server(server_path)
+            self.mcp_clients.append(client)
+
+    async def clean_mcp_client(self):
+        for client in self.mcp_clients:
+            await client.cleanup()
 
     def _list_tools(self):
         #TODO : list_tools request (MCP Client -> MCP Server )
@@ -30,19 +36,22 @@ class LlamaAgent:
         ...
     
 
-    def __call__(self, question:str) -> str:
-        # TODO : supports tool-calling
-        if not self.prompt:
-            raise errors.AgentException("You must set the prompt obejct for LlamaSpeaker")
-        
-        text = self.prompt.get_prompt(question=question, history_k=4)
-        
-        output = self._llm(text, max_tokens=self._max_tokens, 
-                           **self._llm_param)
+    async def __aenter__(self):
+        await self.init_mcp_client()
 
-        choices = output['choices']
-        answer = choices[0]['text'].strip()
+        #TODO : System prompt with function signatures
+        self.prompt.set_system_prompt("You are a helpful assistant.")
 
-        self.prompt.history.append_chat(question=question, answer=answer)
+        return self
 
-        return answer
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.clean_mcp_client()
+
+    def chat(self, question:str) -> str:
+        prompt = self.prompt.get_prompt(question)
+        response = self.llm.generate(prompt)
+
+        # self.prompt.history.append_chat(question=question, answer=answer)
+
+        return response
+

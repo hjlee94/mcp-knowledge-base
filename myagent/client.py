@@ -5,12 +5,11 @@ from mcp.client.stdio import stdio_client
 from mcp import types
 
 
-class KnowledgeVaultClient:
+class MCPClient:
     def __init__(self):
         self.session = None
         self.exit_stack = AsyncExitStack()
 
-    
     async def connect_to_server(self, server_script_path:str):
         server_params = StdioServerParameters(
             command = "python",
@@ -46,7 +45,7 @@ class KnowledgeVaultClient:
         await self.exit_stack.aclose()
 
 async def test():
-    client = KnowledgeVaultClient()
+    client = MCPClient()
     path = './main.py'
 
     try:

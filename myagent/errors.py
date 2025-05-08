@@ -1,3 +1,3 @@
 
-class AgentException(LlamaSynthException):
+class AgentException(Exception):
     pass
