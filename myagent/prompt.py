@@ -1,18 +1,20 @@
 from .types import BasePrompt
+import json
 
 class History:
     def __init__(self, max_history=50) -> None:
         self._history = []
         self._max_history = max_history
 
-    def append_chat(self, question, answer):
-        self._history.append(
-            dict(q=question, a=answer)
-        )
+    def append_prompt(self, prompt):
+        self._history.append(prompt)
 
-        self._history = self._history[self._max_history:]
+        self._history = self._history[-self._max_history:]
 
     def get_chat_history(self, last=0):
+        if last < 0:
+            return []
+        
         if last > 0:
             return self._history[-last:]
         
@@ -31,9 +33,25 @@ class LlamaPrompt(BasePrompt):
         self._system_prompt = f"<|start_header_id|>system<|end_header_id|>"
         self._system_prompt += f"{system_prompt}<|eot_id|>"
 
-    def get_user_prompt(self, question:str) -> str:
+    def append_user_prompt(self, question:str) -> str:
         prompt = f"<|start_header_id|>user<|end_header_id|>"
         prompt += f"{question}<|eot_id|>"
+
+        self.history.append_prompt(prompt)
+
+        return prompt
+
+    def append_assistant_prompt(self, answer):
+        prompt = self.get_assistant_prompt(answer=answer)
+        self.history.append_prompt(prompt)
+        return prompt
+
+    def append_tool_result_prompt(self, result:str) -> str:
+        prompt = f"<|start_header_id|>ipython<|end_header_id|>"
+        prompt += f"{result}<|eot_id|>"
+        
+        self.history.append_prompt(prompt)
+
         return prompt
 
     def get_assistant_prompt(self, answer:str="") -> str:
@@ -42,18 +60,13 @@ class LlamaPrompt(BasePrompt):
             prompt += f"{answer}<|eot_id|>"
 
         return prompt
-
-    def get_prompt(self, question:str, history_k:int=2) -> str:
+    
+    def get_prompt(self, history_k:int=50) -> str:
         prompt = f"{self._system_prompt}"
 
-        if history_k > 0:
-            for h in self.history.get_chat_history(last=history_k):
-                hq = h['q']; ha = h['a']
+        for p in self.history.get_chat_history(last=history_k):
+            prompt += p
 
-                prompt += self.get_user_prompt(question=hq)
-                prompt += self.get_assistant_prompt(answer=ha)
-
-        prompt += self.get_user_prompt(question=question)
         prompt += self.get_assistant_prompt()
         
         return prompt

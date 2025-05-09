@@ -7,7 +7,15 @@ class BasePrompt:
         ...
 
     @abc.abstractmethod
-    def get_user_prompt(self, question:str) -> str:
+    def append_user_prompt(self, question:str) -> str:
+        ...
+
+    @abc.abstractmethod
+    def append_assistant_prompt(self, answer:str) -> str:
+        ...
+
+    @abc.abstractmethod
+    def append_tool_result_prompt(self, result:str) -> str:
         ...
     
     @abc.abstractmethod
@@ -15,7 +23,7 @@ class BasePrompt:
         ...
     
     @abc.abstractmethod
-    def get_prompt(self, question:str, history_k:int=2) -> str:
+    def get_prompt(self, question:str, history_k:int=50) -> str:
         ...
 
 
