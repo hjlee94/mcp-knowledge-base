@@ -35,3 +35,6 @@ def param2dict(pram_s:str) -> dict:
 
 def result2dict(result:types.TextContent):
     return result.text
+
+def uri2path(s):
+    return str(s).replace('%20', ' ').lower()

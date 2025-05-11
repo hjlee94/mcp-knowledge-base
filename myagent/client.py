@@ -4,6 +4,8 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp import types
 
+from . import utils
+from . import errors
 
 class MCPClient:
     def __init__(self):
@@ -44,6 +46,67 @@ class MCPClient:
     async def cleanup(self):
         await self.exit_stack.aclose()
 
+class MCPClientMaanger:
+    def __init__(self):
+        self.server_path:list[str] = []
+        self.clients:list[MCPClient] = []
+
+        self.tool_map:dict[str, int] = dict()
+        self.resource_map:dict[str, int] = dict()
+
+    def register_mcp(self, server_path:str):
+        '''
+        register mcp client/server (server script path)
+        it only supports stdio mcp server (for now)
+        '''
+        self.server_path.append(server_path)
+
+    async def init_mcp_client(self):
+        for path in self.server_path:
+            c = MCPClient()
+            await c.connect_to_server(path)
+
+            self.clients.append(c)
+
+    async def clean_mcp_client(self):
+        for c in self.clients:
+            await c.cleanup()
+
+    async def get_func_scheme(self) -> list[dict[str, str]]:
+        func_scheme_list = []
+
+        for idx, c in enumerate(self.clients):
+            tools = await c.list_tools()
+
+            for tool in tools:
+                func_scheme_list.append(utils.tool2dict(tool))
+                self.tool_map[tool.name] = idx
+
+        return func_scheme_list
+
+    async def get_resource_list(self) -> list[dict[str, str]]:
+        resource_list = []
+
+        for idx, c in enumerate(self.clients):
+            resources = await c.list_resources()
+            
+            for rsrc in resources:
+                resource_list.append(utils.resource2dict(rsrc))
+                self.resource_map[utils.uri2path(rsrc.uri)] = idx
+
+        return resource_list
+    
+    async def call_tool(self, name, param) -> tuple[bool, list[types.TextContent]]:
+        idx = self.tool_map.get(name, -1)
+
+        if idx < 0:
+            raise errors.MCPException(f"Unknown tool name{name}")
+        
+        client = self.clients[idx]
+        result = await client.call_tool(name, param)
+        
+        return result
+        
 async def test():
     client = MCPClient()
     path = './main.py'

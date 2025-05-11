@@ -1,6 +1,6 @@
 from .prompt import BasePrompt
 from .model import BaseModel
-from .client import MCPClient
+from .client import MCPClient, MCPClientMaanger
 from . import errors
 from . import utils
 import json
@@ -57,41 +57,19 @@ class Agent:
         self.llm:BaseModel = model
         self.prompt:BasePrompt = prompt
 
-        self.server_list:list[str] = []
-        self.mcp_clients:list[MCPClient] = []
+        self.mcp_manager = MCPClientMaanger()
 
         self.tool_pattern = re.compile(r'\[([A-Za-z0-9\_]+\(([A-Za-z0-9\_]+=\"?.+\"?,?\s?)*\),?\s?)+\]')
         self.func_pattern = re.compile(r'(?P<function>[A-Za-z0-9\_]+)\((?P<params>[A-Za-z0-9\_]+=\"?.+\"?,?\s?)*\)')
 
     def register_mcp(self, path:str):
-        '''
-        register mcp client/server (server script path)
-        it only supports stdio mcp server (for now)
-        '''
-        self.server_list.append(path)
-
-    async def init_mcp_client(self):
-        for server_path in self.server_list:
-            client = MCPClient()
-            await client.connect_to_server(server_path)
-            self.mcp_clients.append(client)
-
-    async def clean_mcp_client(self):
-        for client in self.mcp_clients:
-            await client.cleanup()
+        self.mcp_manager.register_mcp(path)
 
     async def __aenter__(self):
-        await self.init_mcp_client()
+        await self.mcp_manager.init_mcp_client()
 
-        func_scheme_list = []
-        tools = await self.mcp_clients[0].list_tools()
-        for tool in tools:
-            func_scheme_list.append(utils.tool2dict(tool))
-
-        resource_list = []
-        resources = await self.mcp_clients[0].list_resources()
-        for rsrc in resources:
-            resource_list.append(utils.resource2dict(rsrc))
+        func_scheme_list = await self.mcp_manager.get_func_scheme()
+        resource_list = await self.mcp_manager.get_resource_list()
         
         self.prompt.set_system_prompt(SYSTEM_PROMPT.format(
              function_scheme=json.dumps(func_scheme_list),
@@ -101,7 +79,7 @@ class Agent:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.clean_mcp_client()
+        await self.mcp_manager.clean_mcp_client()
 
     def _is_tool_required(self, response:str):
         return self.tool_pattern.match(response)
@@ -114,19 +92,19 @@ class Agent:
                 name, param_string = res[0]
                 yield name, utils.param2dict(param_string)
 
-    async def get_result_tool(self, response:str):
+    async def get_result_tool(self, response:str) -> list[list[str]]:
         result_list = []
 
         for name, param in self.get_func_props(response):
-            res = await self.mcp_clients[0].call_tool(name, param)
+            res = await self.mcp_manager.call_tool(name, param)
             is_err, content_list = res
             logger.debug(f"mcp function({name}) with param({param}) has results({content_list})")
 
             results = [c.text for c in content_list]
 
-            result_list.append(results)
+            result_list.append({'name':name, 'output':results})
         
-        return json.dumps(result_list)
+        return result_list
 
     async def chat(self, question:str) -> str:
         logger.debug(f"agent got question({question})")
@@ -141,6 +119,7 @@ class Agent:
             self.prompt.append_assistant_prompt(response)
 
             result = await self.get_result_tool(response)
+            result = json.dumps(result, ensure_ascii=False)
 
             logger.debug(f"got result of each tool ({result})")
 
