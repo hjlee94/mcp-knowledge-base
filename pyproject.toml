@@ -8,4 +8,5 @@ dependencies = [
     "aiofiles>=24.1.0",
     "llama-cpp-python>=0.3.8",
     "mcp[cli]>=1.6.0",
+    "streamlit>=1.45.0",
 ]

@@ -1,10 +1,12 @@
 from typing_extensions import Self
 from llama_cpp import Llama
 from .types import BaseModel
+import os
 
 
 class LlamaCPP(BaseModel):
-    def __init__(self, model:Llama):
+    def __init__(self, name:str, model:Llama):
+        self.name = name
         self.model = model
         self.max_tokens = 1024
 
@@ -17,10 +19,13 @@ class LlamaCPP(BaseModel):
             **kwargs
         )
 
-        return cls(model=model)
+        return cls(name = os.path.basename(model_path), model=model)
 
     def generate(self, prompt:str, **kwargs) -> str:
-        output = self.model(prompt, max_tokens=self.max_tokens, **kwargs)
+        if 'max_tokens' not in kwargs:
+            kwargs['max_tokens'] = self.max_tokens
+
+        output = self.model(prompt, **kwargs)
         choices = output['choices']
         response = choices[0]['text'].strip()
         return response

@@ -1,11 +1,14 @@
+from typing import AsyncGenerator
 from .prompt import BasePrompt
 from .model import BaseModel
-from .client import MCPClient, MCPClientMaanger
+from .client import MCPClientMaanger
+from .types import AgentResponse
 from . import errors
 from . import utils
 import json
 import re
 import logging
+
 
 #* Llama 3.2
 SYSTEM_PROMPT = """You are an expert in composing functions. You are given a question and a set of possible functions. 
@@ -62,10 +65,18 @@ class Agent:
         self.tool_pattern = re.compile(r'\[([A-Za-z0-9\_]+\(([A-Za-z0-9\_]+=\"?.+\"?,?\s?)*\),?\s?)+\]')
         self.func_pattern = re.compile(r'(?P<function>[A-Za-z0-9\_]+)\((?P<params>[A-Za-z0-9\_]+=\"?.+\"?,?\s?)*\)')
 
+    @property
+    def model_name(self):
+        return self.llm.name
+    
+    @property
+    def server_list(self):
+        return self.mcp_manager.get_server_names()
+    
     def register_mcp(self, path:str):
         self.mcp_manager.register_mcp(path)
 
-    async def __aenter__(self):
+    async def init_agent(self):
         await self.mcp_manager.init_mcp_client()
 
         func_scheme_list = await self.mcp_manager.get_func_scheme()
@@ -76,10 +87,16 @@ class Agent:
              resource_list=json.dumps(resource_list)
         ))
 
+    async def clean_agent(self):
+        await self.mcp_manager.clean_mcp_client()
+
+    async def __aenter__(self):
+        await self.init_agent()
+
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.mcp_manager.clean_mcp_client()
+        await self.clean_agent()
 
     def _is_tool_required(self, response:str):
         return self.tool_pattern.match(response)
@@ -106,28 +123,35 @@ class Agent:
         
         return result_list
 
-    async def chat(self, question:str) -> str:
+    async def chat(self, question:str, **kwargs) -> list[AgentResponse]:
+        response_list = []
+
         logger.debug(f"agent got question({question})")
         self.prompt.append_user_prompt(question)
-        response = self.llm.generate(self.prompt.get_prompt())
+        response = self.llm.generate(self.prompt.get_prompt(), **kwargs)
         response = response.lstrip('()<>\{\}') #! remove noise (temporal)
 
         logger.debug(f"llm generated response ({response})")
 
         if self._is_tool_required(response):
             logger.debug(f"agent tool required")
+            response_list.append(AgentResponse(type="tool-calling", data=response))
+
             self.prompt.append_assistant_prompt(response)
 
             result = await self.get_result_tool(response)
             result = json.dumps(result, ensure_ascii=False)
 
+            response_list.append(AgentResponse(type="tool-result", data=result))
+
             logger.debug(f"got result of each tool ({result})")
 
             self.prompt.append_tool_result_prompt(result)
 
-            response = self.llm.generate(self.prompt.get_prompt())
+            response = self.llm.generate(self.prompt.get_prompt(), **kwargs)
 
             logger.debug(f"llm generated final response({response})")
 
-        return response
+        response_list.append(AgentResponse(type="text", data=response))
+        return response_list
 

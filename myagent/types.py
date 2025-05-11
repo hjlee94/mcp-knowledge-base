@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Literal
 import abc
+import pydantic
 
 class BasePrompt:
     @abc.abstractmethod
@@ -32,3 +33,8 @@ class BaseModel:
     def generate(self, prompt:BasePrompt) -> str:
         '''generate a response based on the current prompt'''
         ...
+
+
+class AgentResponse(pydantic.BaseModel):
+    type: Literal["text", "tool-calling", "tool-result"]
+    data: str
