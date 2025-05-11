@@ -10,17 +10,16 @@ async def run_agent():
     agent.register_mcp(path="./run_server.py")
 
     async with agent:
-        while (prompt := input('> ')) != 'bye':
+        while (prompt := input('(prompt) ')) != 'bye':
             response = await agent.chat(prompt)
-            print(response)
-            
-        # response = await agent.chat("can you list which knowledges are in the vault?")
-        # print(response)
-        # response = await agent.chat("can you show me the contents of the resource named Contrastive Learning? its uri is \"file://a/bb/c.md\"")
-        # print(response)
-        # response = await agent.chat("can you show me the contents of the resource named Contrastive Learning?")
-        # print(response)
 
+            for r in response:
+                if r.type == 'text':
+                    print(f"(assistant) {r.data}")
+                elif r.type == 'tool-calling':
+                    print(f"(assistant) tool calling {r.data}")
+                elif r.type == 'tool-result':
+                    print(f"(assistant) tool result {r.data}")
 
 if __name__ == '__main__':
     asyncio.run(run_agent())

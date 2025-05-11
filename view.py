@@ -78,17 +78,31 @@ with st.container():
     agent_name = f"`{agent.name}`" if agent else ""
     model_name = f"`{agent.model_name}`" if agent else ""
     status = '🟢 Ready' if agent else '🔴 Not Ready'
-    server_list_html = "\n".join([f"  - `{server_name}`" for server_name in agent.server_list]) if agent else ""
+    server_list_html = "\n".join([f"\t- `{server_name}`" for server_name in agent.server_list]) if agent else ""
+
+    tool_info = []
+    if agent:
+        for server_name, func_info in agent.mcp_manager.tool_info.items():
+            tool_info.append(f"- **{server_name}**\n" + "\n".join([f"\t- `{tool_name}` : {description.strip()}" for tool_name, description in func_info.items()]))
+
+    tool_info = '\n'.join(tool_info)
 
     st.subheader("🛠️ Agent Information")
-    st.markdown(f"""
-    - **Agent**: {agent_name}
-    - **Model**: {model_name}
-    - **Status**: {status}
-    - **MCP Server**:
-    {server_list_html}
-    
-    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([0.4,0.6])
+    with col1:
+        st.markdown(f"""
+        - **Agent**: {agent_name}
+        - **Model**: {model_name}
+        - **Status**: {status}
+        - **MCP Server**:
+        {server_list_html}
+        
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        {tool_info}
+        """)
 
 st.divider()
 

@@ -55,6 +55,7 @@ class MCPClientMaanger:
         self.clients:list[MCPClient] = []
 
         self.tool_map:dict[str, int] = dict()
+        self.tool_info:dict[str, dict[str, str]] = dict()
         self.resource_map:dict[str, int] = dict()
 
     def register_mcp(self, server_path:str):
@@ -77,7 +78,7 @@ class MCPClientMaanger:
 
     def get_server_names(self):
         return list(filter(lambda x:x, [c.name for c in self.clients]))
-
+    
     async def get_func_scheme(self) -> list[dict[str, str]]:
         func_scheme_list = []
 
@@ -87,6 +88,10 @@ class MCPClientMaanger:
             for tool in tools:
                 func_scheme_list.append(utils.tool2dict(tool))
                 self.tool_map[tool.name] = idx
+                
+                func_info = self.tool_info.get(self.clients[idx].name, {})
+                func_info[tool.name] = tool.description
+                self.tool_info[self.clients[idx].name] = func_info
 
         return func_scheme_list
 

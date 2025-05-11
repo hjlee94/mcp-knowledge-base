@@ -43,10 +43,9 @@ Here is a list of registered resources in the knowledge vault.
 # # """
 
 logger = logging.getLogger('agent')
-logger.setLevel(logging.DEBUG)
 
 handler = logging.StreamHandler()
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 
 formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
