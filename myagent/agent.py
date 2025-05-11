@@ -110,7 +110,7 @@ class Agent:
         logger.debug(f"agent got question({question})")
         self.prompt.append_user_prompt(question)
         response = self.llm.generate(self.prompt.get_prompt())
-        response = response.lstrip('()<>') #! remove noise (temporal)
+        response = response.lstrip('()<>\{\}') #! remove noise (temporal)
 
         logger.debug(f"llm generated response ({response})")
 

@@ -6,7 +6,7 @@ from .types import BaseModel
 class LlamaCPP(BaseModel):
     def __init__(self, model:Llama):
         self.model = model
-        self.max_tokens = 256
+        self.max_tokens = 1024
 
     @classmethod
     def from_path(cls, model_path:str, n_ctx:int=131072, **kwargs) -> Self:
