@@ -24,8 +24,6 @@ You SHOULD NOT include any other text in the response.
 Here is a list of functions in JSON format that you can invoke.
 
 {function_scheme}
-
-{user_prompt}
 """
 
 #* LLama 3.1
@@ -88,7 +86,8 @@ class Agent:
         self.func_scheme_prompt = json.dumps(func_scheme_list)
         self.resource_prompt = json.dumps(resource_list)
         
-        self.prompt.set_system_prompt(SYSTEM_PROMPT)
+        p = self.prompt.get_system_prompt(SYSTEM_PROMPT)
+        self.prompt.set_system_prompt(p)
 
     async def clean_agent(self):
         await self.mcp_manager.clean_mcp_client()
@@ -130,16 +129,16 @@ class Agent:
         response_list = []
 
         logger.debug(f"agent got question({question})")
-        user_prompt = TOOL_CALL_PROMPT.format(function_scheme=self.func_scheme_prompt, user_prompt=question)
-        self.prompt.append_user_prompt(user_prompt)
-        temp_inp = self.prompt.get_prompt()
 
-        # response = self.llm.generate(self.prompt.get_prompt(), **kwargs)
-        response = self.llm.generate(temp_inp, **kwargs)
-        response = response.strip().lstrip('()<>\{\}`').strip() #! remove noise (temporal)
-
-        self.prompt.history._history.pop()
-        self.prompt.append_user_prompt(question)
+        tool_scheme = TOOL_CALL_PROMPT.format(
+            function_scheme=self.func_scheme_prompt
+            )
+        
+        p = self.prompt.get_user_prompt(question=question, tool_scheme=tool_scheme)
+        self.prompt.append_history(p)
+        
+        response = self.llm.generate(self.prompt.get_generation_prompt(tool_enabled=True), **kwargs)
+        response = response.strip().lstrip('()<>\{\}`') #! remove noise (temporal)
 
         logger.debug(f"llm generated response ({response})")
 
@@ -147,7 +146,8 @@ class Agent:
             logger.debug(f"agent tool required")
             response_list.append(AgentResponse(type="tool-calling", data=response))
 
-            self.prompt.append_assistant_prompt(response)
+            p = self.prompt.get_assistant_prompt(answer=response)
+            self.prompt.append_history(p)
 
             result = await self.get_result_tool(response)
             result = json.dumps(result, ensure_ascii=False)
@@ -156,12 +156,17 @@ class Agent:
 
             logger.debug(f"got result of each tool ({result})")
 
-            self.prompt.append_tool_result_prompt(result)
+            p = self.prompt.get_tool_result_prompt(result=result)
+            self.prompt.append_history(p)
 
-            response = self.llm.generate(self.prompt.get_prompt(history_k=3), **kwargs)
+            response = self.llm.generate(self.prompt.get_generation_prompt(tool_enabled=False, last=3), **kwargs)
 
             logger.debug(f"llm generated final response({response})")
 
         response_list.append(AgentResponse(type="text", data=response))
+
+        p = self.prompt.get_assistant_prompt(answer=response)
+        self.prompt.append_history(p)
+
         return response_list
 
