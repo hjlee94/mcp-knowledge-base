@@ -138,6 +138,6 @@ if user_input := st.chat_input("Type your message...", disabled=False if st.sess
             st.chat_message("assistant").markdown(content)
         
         elif response.type == 'tool-result':
-            content = f"```json\n{response.data}\n```"
+            content = f"tool result\n```json\n{response.data}\n```"
             st.session_state.messages.append({"role": "assistant", "content": content})
             st.chat_message("assistant").markdown(content)
